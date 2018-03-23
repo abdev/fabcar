@@ -195,9 +195,7 @@ func validateChangeCarOwner(app *BlockChainApplication, transaction Transaction)
 			Log:  fmt.Sprintf("Cannot json unserialize %s into  change car payload, we got %v", string(transaction.Data), err)}
 	}
 
-	//search for car record
-	key := CarAssetPrefix + changeOwnerPayload.AssetID // something like Car:car3
-	record := app.state.db.Get([]byte(key))
+	record := app.state.GetCar(changeOwnerPayload.AssetID)
 
 	if len(record) == 0 {
 		return types.ResponseCheckTx{
@@ -220,10 +218,7 @@ func createCar(app *BlockChainApplication, transaction Transaction) types.Respon
 			Log:  fmt.Sprintf("Cannot json unserialize %s into asset car, we got %v", string(transaction.Data), err)}
 	}
 
-	transactionDbData.Key = []byte(CarAssetPrefix + asset.ID) // something like Car:car3
-	transactionDbData.Value = transaction.Data
-
-	app.state.db.Set(transactionDbData.Key, transactionDbData.Value)
+	app.state.SaveCar(asset.ID, transaction.Data)
 	app.state.Size++
 
 	log.Println("we have saved the data in db")
@@ -232,8 +227,6 @@ func createCar(app *BlockChainApplication, transaction Transaction) types.Respon
 }
 
 func changeCarOwner(app *BlockChainApplication, transaction Transaction) types.ResponseDeliverTx {
-	var transactionDbData DbData
-
 	var changeOwnerPayload ChangeOwnerPayload
 
 	err := json.Unmarshal(transaction.Data, &changeOwnerPayload)
@@ -245,8 +238,7 @@ func changeCarOwner(app *BlockChainApplication, transaction Transaction) types.R
 	}
 
 	//search for car record
-	key := CarAssetPrefix + changeOwnerPayload.AssetID // something like Car:car3
-	record := app.state.db.Get([]byte(key))
+	record := app.state.GetCar(changeOwnerPayload.AssetID)
 
 	if len(record) == 0 {
 		return types.ResponseDeliverTx{
@@ -275,15 +267,12 @@ func changeCarOwner(app *BlockChainApplication, transaction Transaction) types.R
 			Log:  fmt.Sprintf("Cannot encode asset %v", asset)}
 	}
 
-	transactionDbData.Key = []byte(key)
-	transactionDbData.Value = record
-
-	app.state.db.Set(transactionDbData.Key, transactionDbData.Value)
+	app.state.SaveCar(asset.ID, record)
 	app.state.Size++
 
 	log.Println("we have saved the data in db")
 
-	return types.ResponseDeliverTx{Code: CodeTypeOK, Data: transactionDbData.Value}
+	return types.ResponseDeliverTx{Code: CodeTypeOK, Data: record}
 
 }
 

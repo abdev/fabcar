@@ -70,3 +70,18 @@ func (state *State) GetAllCars() (map[string]AssetCar, error) {
 	}
 	return data, nil
 }
+
+// GetCar returns a car record from db, return empty if no record found
+func (state *State) GetCar(ID string) []byte {
+	//search for car record
+	key := CarAssetPrefix + ID // something like Car:car3
+	return state.db.Get([]byte(key))
+}
+
+// SaveCar saves a car record on db
+func (state *State) SaveCar(ID string, data []byte) {
+	key := []byte(CarAssetPrefix + ID) // something like Car:car3
+	value := data
+
+	state.db.Set(key, value)
+}
