@@ -32,3 +32,12 @@ type Transaction struct {
 	Operation string
 	Data      json.RawMessage
 }
+
+// ErrTransactionDecoding represents an error occured when trying to decode a transaction payload
+type ErrTransactionDecoding struct {
+	message string
+}
+
+func (err *ErrTransactionDecoding) Error() string {
+	return err.message
+}

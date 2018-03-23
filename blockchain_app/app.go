@@ -21,20 +21,6 @@ const (
 	CodeTypeUnauthorized  uint32 = 3
 )
 
-func decodePayload(reqData []byte, withDebug bool) ([]byte, error) {
-	payload, err := base64.StdEncoding.DecodeString(string(reqData))
-
-	if err != nil {
-		return nil, err
-	}
-
-	if withDebug {
-		log.Println("With the payload", string(payload), string(reqData))
-	}
-
-	return payload, nil
-}
-
 // BlockChainApplication represents the block chain app
 type BlockChainApplication struct {
 	types.BaseApplication
@@ -81,26 +67,12 @@ func (app *BlockChainApplication) SetOption(req types.RequestSetOption) types.Re
 // base64encoded: eyJvcGVyYXRpb24iOiAiY3JlYXRlQ2FyIiwgImRhdGEiOiB7IklEIjogImNhcjMiLCAiTWFrZSI6ICJUb3lvdGEiLCAiTW9kZWwiOiAiUHJpdXMiLCAiQ29sb3VyIjogImJsdWUiLCAiT3duZXIiOiAiVG9tb2tvIn19
 func (app *BlockChainApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
 
-	log.Println("We are in deliver txt")
-
-	payload, err := decodePayload(tx, true)
+	transaction, err := decodePayload(tx)
 
 	if err != nil {
-		log.Println("We are in deliver txt - err1")
 		return types.ResponseDeliverTx{
 			Code: CodeTypeEncodingError,
-			Log:  fmt.Sprintf("Cannot decode payload %s, we got %v", string(tx), err)}
-	}
-
-	//try to unserialize the data
-	var transaction Transaction
-	err = json.Unmarshal(payload, &transaction)
-
-	if err != nil {
-		log.Println("We are in deliver txt - err2")
-		return types.ResponseDeliverTx{
-			Code: CodeTypeEncodingError,
-			Log:  fmt.Sprintf("Cannot json unserialize %s, we got %v", string(payload), err)}
+			Log:  err.(*ErrTransactionDecoding).message}
 	}
 
 	log.Println("We are in deliver txt with transaction", transaction)
@@ -124,22 +96,12 @@ func (app *BlockChainApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
 func (app *BlockChainApplication) CheckTx(tx []byte) types.ResponseCheckTx {
 	log.Println("We are in check txt")
 
-	payload, err := decodePayload(tx, true)
+	transaction, err := decodePayload(tx)
 
 	if err != nil {
 		return types.ResponseCheckTx{
 			Code: CodeTypeEncodingError,
-			Log:  fmt.Sprintf("Cannot decode payload %s, we got %v", tx, err)}
-	}
-
-	//try to unserialize the data
-	var transaction Transaction
-	err = json.Unmarshal(payload, &transaction)
-
-	if err != nil {
-		return types.ResponseCheckTx{
-			Code: CodeTypeEncodingError,
-			Log:  fmt.Sprintf("Cannot json unserialize %s, we got %v", string(payload), err)}
+			Log:  err.(*ErrTransactionDecoding).message}
 	}
 
 	if transaction.Operation == OpCreateCar {
@@ -182,6 +144,27 @@ func (app *BlockChainApplication) Query(reqQuery types.RequestQuery) types.Respo
 	default:
 		return types.ResponseQuery{Code: CodeTypeBadData, Value: []byte(cmn.Fmt("Invalid query path: %v", reqQuery.Path))}
 	}
+}
+
+func decodePayload(tx []byte) (Transaction, error) {
+	var transaction Transaction
+
+	payload, err := base64.StdEncoding.DecodeString(string(tx))
+
+	log.Println("Payload received: ", string(payload), string(tx))
+
+	if err != nil {
+		return transaction, &ErrTransactionDecoding{fmt.Sprintf("Cannot decode payload %s, we got %v", string(tx), err)}
+	}
+
+	//try to unserialize the data
+	err = json.Unmarshal(payload, &transaction)
+
+	if err != nil {
+		return transaction, &ErrTransactionDecoding{message: fmt.Sprintf("Cannot json unserialize %s, we got %v", string(payload), err)}
+	}
+
+	return transaction, nil
 }
 
 func validateChangeCarOwner(app *BlockChainApplication, transaction Transaction) types.ResponseCheckTx {
