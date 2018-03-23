@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 
 	"github.com/tendermint/abci/types"
@@ -43,7 +44,20 @@ type BlockChainApplication struct {
 
 // NewBlockChainApplication starts a blockchain application with state loaded from db
 func NewBlockChainApplication() *BlockChainApplication {
-	state := loadState(dbm.NewMemDB())
+	//TODO: find a better storage dir
+	dir, err := ioutil.TempDir("/tmp", "abci-car")
+	if err != nil {
+		panic(err)
+	}
+
+	name := "car"
+	db, err := dbm.NewGoLevelDB(name, dir)
+
+	if err != nil {
+		panic(err)
+	}
+
+	state := loadState(db)
 	return &BlockChainApplication{state: state}
 }
 
